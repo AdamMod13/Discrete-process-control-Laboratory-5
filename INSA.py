@@ -1,122 +1,132 @@
-import math
 from RandomNumberGenerator import RandomNumberGenerator
+import math
 
-def find_index_2d(array, current_task_index, value):
-    indexes = []
-
-    for i in range(current_task_index):
-        for j in range(len(array[i])):
-            if array[i][j] == value:
-                indexes.append((i, j))
-
-    if not indexes:
-        return None
-    else:
-        return indexes
-
-def count_values_2d(array):
-    count = 0
-
-    for row in array:
-        count += len(row)
-
-    return count
+class Task:
+    def __init__(self):
+        self.p = []  # czas wykonywania
+        self.u = []  # rodzaj maszyny
+        self.number = 0  # numer operacji
 
 
-def calculate_Cmax(p, mu):
-    n = len(p)  # liczba zadań
+def Cmax(schedule):
+    m = 0
+    for i in range(len(schedule)):
+        data = schedule[i]
+        maxMachine = max(data.u)
+        m = max(m, maxMachine)
 
-    # Obliczenie maksymalnej liczby maszyn dla zadania
-    m = max(max(mu[i]) for i in range(n))
+    mEndTime = [0] * m
 
-    # Inicjalizacja tablicy czasy zakończenia
-    C = [[0] * len(p[i]) for i in range(n)]
-    C_machine = [[(0, 0)] * len(p[i]) for i in range(n)]  # Tablica pomocnicza z elementami (C, numer maszyny)
+    for i in range(len(schedule)):
+        data = schedule[i]
+        for j in range(len(data.p)):
+            machine = data.u[j] - 1
+            processingTime = data.p[j]
 
-    # Obliczanie czasów zakończenia dla pierwszego zadania
-    C[0][0] = p[0][0]
-    C_machine[0][0] = (C[0][0], mu[0][0])
-    for j in range(1, len(p[0])):
-        C[0][j] = C[0][j-1] + p[0][j]
-        C_machine[0][j] = (C[0][j], mu[0][j])
-
-    # Obliczanie czasów zakończenia dla pozostałych zadań
-    for i in range(1, n):
-        for j in range(len(p[i])):
             if j == 0:
-                values = find_index_2d(mu, i, mu[i][j])
-                if values is not None:
-                    row, col = values[-1]
-                    C[i][j] = C[row][col] + p[i][j] 
-                else:    
-                    C[i][j] = p[i][j]
-
-                C_machine[i][j] = (C[i][j], mu[i][j])
-
+                if machine == 0:
+                    mEndTime[machine] += processingTime
+                else:
+                    mEndTime[machine] = max(mEndTime[machine], mEndTime[machine - 1]) + processingTime
             else:
-                C[i][j] = C[i][j-1] + p[i][j]
-                C_machine[i][j] = (C[i][j], mu[i][j])
-            
+                mEndTime[machine] = max(mEndTime[machine], mEndTime[machine - 1]) + processingTime
+
+    maxEndTime = max(mEndTime)
+
+    return maxEndTime
 
 
-    # Obliczanie wartości Cmax
-    Cmax = max(max(row) for row in C)
+def INSA(elem, m, iterations, task):
+    bestSchedule = []
+    bestCmax = float('inf')
 
-    return C, C_machine, Cmax
+    for i in range(iterations):
+        currentCmax = Cmax(task)
 
+        # Lokalne przeszukiwanie sąsiedztwa
+        improved = True
+        while improved:
+            improved = False
+            for j in range(elem):
+                for k in range(1, len(task[j].p)):
+                    task[j].p[k - 1], task[j].p[k] = task[j].p[k], task[j].p[k - 1]
+                    newCmax = Cmax(task)
+                    if newCmax < currentCmax:
+                        currentCmax = newCmax
+                        improved = True
+                    else:
+                        task[j].p[k - 1], task[j].p[k] = task[j].p[k], task[j].p[k - 1]
 
-rng = RandomNumberGenerator(2451)
+        # Aktualizacja najlepszego harmonogramu
+        if currentCmax < bestCmax:
+            bestCmax = currentCmax
+            bestSchedule = task.copy()
 
-m = 4
-j = 5
-
-# o = []
-# pkj = []
-# muk = []
-# pkj_tmp = []
-# muk_tmp = []
-
-# for i in range(j):
-#     pomoc_o = rng.nextInt(1, math.floor(m * 1.2))
-#     o.append(pomoc_o)
-#     for k in range(o[i]):
-#         pomoc = rng.nextInt(1, 29)
-#         pkj_tmp.append(pomoc)
-  
-#     pkj.append(pkj_tmp.copy())
-#     pkj_tmp.clear()
-
-
-# for i in range(j):
-#     for k in range(o[i]):
-#         pomoc = rng.nextInt(1, m)
-#         muk_tmp.append(pomoc)
-#     muk.append(muk_tmp.copy())
-#     muk_tmp.clear()
+    return bestSchedule
 
 
-# print(pkj)
-# print(muk)
+if __name__ == '__main__':
+    rng = RandomNumberGenerator(2451)
+    task = []
+    tmp = Task()
+    o = []
+    elem = 5
+    m = 4
+    iterations = 1000
 
-# Przykładowe dane
-p = [[12, 29], [24, 20], [27, 28, 28], [3, 21, 22, 1, 9], [26, 22, 25, 8, 9]]
-mu = [[3, 2], [4, 3], [2, 4, 3], [3, 1, 1, 2, 2], [1, 3, 3, 4, 1]]
+    for i in range(elem):
+        pomoc_o = rng.nextInt(1, math.floor(m * 1.2)) + 1
+        o.append(pomoc_o)
+        for j in range(o[i]):
+            pomoc = rng.nextInt(1, 29)
+            tmp.p.append(pomoc)
 
-seed = 2451
+        for j in range(o[i]):
+            pomoc = rng.nextInt(1, m)
+            tmp.u.append(pomoc)
+        tmp.number = i + 1
+        task.append(tmp)
+        tmp = Task()
 
-C, C_machine, Cmax = calculate_Cmax(p, mu)
+    # Wyświetlenie wygenerowanego harmonogramu
+    for i in range(elem):
+        print(task[i].number, ".")
+        print("p: [", end="")
+        for j in range(len(task[i].p)):
+            if j == len(task[i].p) - 1:
+                print(task[i].p[j], end="")
+            else:
+                print(task[i].p[j], ", ", end="")
+        print("]")
 
-total_values = count_values_2d(p)
+        print("u: [", end="")
+        for j in range(len(task[i].u)):
+            if j == len(task[i].u) - 1:
+                print(task[i].u[j], end="")
+            else:
+                print(task[i].u[j], ", ", end="")
+        print("]")
 
-pi = list(range(1,18))
+    bestSchedule = INSA(elem, m, iterations, task)
 
-print("seed: ", seed)
-print("size: ", len(p), "x", max(max(mu[i]) for i in range(len(p))))
-print(p)
-print(mu)
-print("Permutacja naturalna")
-print(pi)
-print(C)
-print("Cmax:", Cmax)
+    mEndTime = [0] * m
 
-# print("C_machine", C_machine)
+    for i in range(len(bestSchedule)):
+        for j in range(len(bestSchedule[i].p)):
+            machine = bestSchedule[i].u[j] - 1
+            processingTime = bestSchedule[i].p[j]
+
+            if j == 0:
+                if machine == 0:
+                    mEndTime[machine] += processingTime
+                else:
+                    mEndTime[machine] = max(mEndTime[machine], mEndTime[machine - 1]) + processingTime
+            else:
+                mEndTime[machine] = max(mEndTime[machine], mEndTime[machine - 1]) + processingTime
+
+    print("Czasy zakończenia zadań na maszynach:")
+    for m in range(1, m + 1):
+        print("Maszyna", m, ":", mEndTime[m - 1])
+
+    bestCmax = Cmax(bestSchedule)
+    print("Wartość Cmax:", bestCmax)
